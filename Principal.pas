@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, StdCtrls, uLkJSON, ACBrDFeSSL, IdHTTP, IdSSLOpenSSL;
+  Dialogs, StdCtrls, uLkJSON, ACBrDFeSSL, IdHTTP, IdSSLOpenSSL, IniFiles;
 
 type
   TFPrincipal = class(TForm)
@@ -190,6 +190,8 @@ begin
 end;
 
 procedure TFPrincipal.FormCreate(Sender: TObject);
+var
+  IniFile: TIniFile;
 begin
   UrlToken := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/token';
 
@@ -197,6 +199,24 @@ begin
   SenhaPFX     := '123456';
   ClienteID    := '12345678-1234-1234-1234-123456789012';
   ClientSecret := '12345678-1234-1234-1234-123456789012';
+
+  if FileExists(ExtractFilePath(Application.ExeName) + 'Configuracoes.ini') then
+  begin
+    IniFile := TIniFile.Create(ExtractFilePath(Application.ExeName) + 'Configuracoes.ini');
+    if IniFile.ReadString('Configuracoes', 'ArquivoPFX', '') <> '' then
+      ArquivoPFX := IniFile.ReadString('Configuracoes', 'ArquivoPFX', '');
+
+    if IniFile.ReadString('Configuracoes', 'SenhaPFX', '') <> '' then
+      SenhaPFX := IniFile.ReadString('Configuracoes', 'SenhaPFX', '');
+
+    if IniFile.ReadString('Configuracoes', 'ClienteID', '') <> '' then
+      ClienteID := IniFile.ReadString('Configuracoes', 'ClienteID', '');
+
+    if IniFile.ReadString('Configuracoes', 'ClientSecret', '') <> '' then
+      ClientSecret := IniFile.ReadString('Configuracoes', 'ClientSecret', '');
+
+    IniFile.Free;
+  end;
 
   FHTTP                         := TIdHTTP.Create;
   FIdSSLIOHandlerSocketOpenSSL  := TIdSSLIOHandlerSocketOpenSSL.Create(FHTTP);
