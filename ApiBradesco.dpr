@@ -2,7 +2,9 @@ program ApiBradesco;
 
 uses
   Forms,
-  Principal in 'Principal.pas' {FPrincipal};
+  Principal in 'Principal.pas' {FPrincipal},
+  LibBradescoApiCriaBoleto in 'LibBradescoApiCriaBoleto.pas',
+  Funcoes in 'Funcoes.pas';
 
 {$R *.res}
 
