@@ -5,18 +5,18 @@ interface
 uses
   Classes, SysUtils, ACBrDFeSSL;
 
-function EncodeBase64(const inStr: string): string;
 function DateTimeToUnix(const AValue: TDateTime): Cardinal;
 function AddHoursToDateTime(ADateTime: TDateTime; Hours: Double): TDateTime;
 function MilliSecondsBetween(const ANow, AThen: TDateTime): Int64;
 function CalcularHash(var DFeSSL_Local: TDFeSSL; AAut: TStream): string;
 function ConverteDateISO(AData: TDateTime; AInputIsUTC : Boolean = True): String;
 function URLEncode(const S: string): string;
+function Remove_13_10(const S: string): string;
 
 implementation
 
 //essa funcao esta nao Comunix.FuncoesGeral
-function EncodeBase64(const inStr: string): string;
+function EncodeBase64Comunix(const inStr: string): string;
 
   function Encode_Byte(b: Byte): char; 
   const 
@@ -64,6 +64,14 @@ end;
 function CalcularHash(var DFeSSL_Local: TDFeSSL; AAut: TStream): string;
 begin
   Result := DFeSSL_Local.CalcHash(AAut, dgstSHA256, outBase64, True);
+
+  // Remover caracteres de preenchimento '='
+  while (Length(Result) > 0) and (Result[Length(Result)] = '=') do
+    SetLength(Result, Length(Result) - 1);
+
+  // Substituir + por - e / por _
+  Result := StringReplace(Result, '+', '-', [rfReplaceAll]);
+  Result := StringReplace(Result, '/', '_', [rfReplaceAll]);
 end;
 
 function ConverteDateISO(AData: TDateTime; AInputIsUTC : Boolean = True): String;
@@ -75,7 +83,7 @@ end;
 
 function URLEncode(const S: string): string;
 var
-  I, J: integer;
+  I: integer;
 begin
   Result := '';
   for I := 1 to Length(S) do begin
@@ -88,6 +96,11 @@ begin
       Result := Result + S[I];
     end;
   end;
+end;
+
+function Remove_13_10(const S: string): string;
+begin
+  Result := StringReplace(S, #13#10, '', [rfReplaceAll, rfIgnoreCase]);
 end;
 
 end.

@@ -449,7 +449,7 @@ begin
 
   i := 0;
   strJson := GenerateReadableText(json, i);
-  strJson := StringReplace(StringReplace(strJson, #13, '', [rfReplaceAll, rfIgnoreCase]), #10, '', [rfReplaceAll, rfIgnoreCase]);
+  strJson := Remove_13_10(strJson);
   Result := strJson;
 end;
 

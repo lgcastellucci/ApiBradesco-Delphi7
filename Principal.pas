@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   Dialogs, StdCtrls, uLkJSON, ACBrDFeSSL, ACBrEAD, ACBrOpenSSLUtils, IdHTTP,
-  IdSSLOpenSSL, IniFiles;
+  IdSSLOpenSSL, IniFiles, synacode;
 
 type
   TFPrincipal = class(TForm)
@@ -177,7 +177,12 @@ begin
   jsonHeader.Add('typ', 'JWT');
   i := 0;
   strJsonHeader := GenerateReadableText(jsonHeader, i);
+  strJsonHeader := Remove_13_10(strJsonHeader);
   strHeaderBase64 := EncodeBase64(strJsonHeader);
+
+  // Remover caracteres de preenchimento '='
+  while (Length(strHeaderBase64) > 0) and (strHeaderBase64[Length(strHeaderBase64)] = '=') do
+    SetLength(strHeaderBase64, Length(strHeaderBase64) - 1);
   {*** FIM BLOCO MONTAGEM DO HEADER JSON ***}
   
 
@@ -191,21 +196,32 @@ begin
   jsonPayload.Add('ver', '1.1');
   i := 0;
   strPayloadBase := GenerateReadableText(jsonPayload, i);
+  strPayloadBase := Remove_13_10(strPayloadBase);
   strPayloadBase64 := EncodeBase64(strPayloadBase);
+
+  // Remover caracteres de preenchimento '='
+  while (Length(strPayloadBase64) > 0) and (strPayloadBase64[Length(strPayloadBase64)] = '=') do
+    SetLength(strPayloadBase64, Length(strPayloadBase64) - 1);
+
   {*** FIM BLOCO MONTAGEM DO PAYLOAD JSON ***}
 
   {*** BLOCO DE ASSINATURA ***}
-  streamHeaderPayload := TStringStream.Create(strHeaderBase64 + '.' + strPayloadBase64);
-
   DFeSSL.SSLCryptLib := cryOpenSSL;
   DFeSSL.ArquivoPFX := ArquivoPFX;
   DFeSSL.Senha := SenhaPFX;
   DFeSSL.CarregarCertificado;
 
-  strAssinado := CalcularHash(DFeSSL, streamHeaderPayload);
+  streamHeaderPayload := TStringStream.Create(strHeaderBase64 + '.' + strPayloadBase64); //concatena conforme o manual.
+  strAssinado := CalcularHash(DFeSSL, streamHeaderPayload); //aqui realiza a assinatura.
 
-  strJWS := strHeaderBase64 + '.' + strPayloadBase64 + '.' + strAssinado;
+  strJWS := strHeaderBase64 + '.' + strPayloadBase64 + '.' + strAssinado; //HeaderBase64 + PayloadBase64 + JWT assinado = JWS.
   {*** FIM BLOCO DE ASSINATURA ***}
+
+  {*** BLOCO DE MONTAGEM DO BODY ***}
+  xRequestBody := TStringList.Create;
+  xRequestBody.Add('grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer');
+  xRequestBody.Add('assertion=' + strJWS);
+  {*** FIM BLOCO DE MONTAGEM DO BODY ***}
 
   FHTTP.Request.Clear;
   FHTTP.Request.CustomHeaders.Clear;
@@ -214,10 +230,6 @@ begin
   FHTTP.Request.AcceptEncoding := 'gzip, deflate, br';
   FHTTP.Request.ContentType := 'application/x-www-form-urlencoded';
   FHTTP.Request.BasicAuthentication := False;
-
-  xRequestBody := TStringList.Create;
-  xRequestBody.Add('grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer');
-  xRequestBody.Add('assertion=' + strJWS);
 
   try
     strResult := FHTTP.Post(UrlToken, xRequestBody);
