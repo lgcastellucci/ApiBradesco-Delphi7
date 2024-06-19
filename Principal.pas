@@ -24,6 +24,8 @@ type
   private
     { Private declarations }
     DFeSSL: TDFeSSL;
+    FSSLDigest               : TSSLDgst;
+    FSSLHashOutput           : TSSLHashOutput;
     //ObjACBrEAD: TACBrEAD;
     FIdSSLIOHandlerSocketOpenSSL: TIdSSLIOHandlerSocketOpenSSL;
     ACBrOpenSSLUtils1: TACBrOpenSSLUtils;
@@ -39,7 +41,9 @@ var
   ClienteID, ClientSecret: string;
   ArquivoPFX, SenhaPFX: string;
   PagadorDocumento, PagadorNome, PagadorEnderecoRua, PagadorEnderecoNumero, PagadorEnderecoCep, PagadorEnderecoBairro, PagadorEnderecoMunicipio, PagadorEnderecoUF: string;
-  BeneficiarioDocumento:string;
+  BeneficiarioDocumento: string;
+  Agora: TDateTime;
+
 implementation
 
 uses
@@ -54,6 +58,12 @@ begin
   UrlToken := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/token';
   UrlRegBoleto := '/v1/boleto/registrarBoleto';
   UrlCriaBoleto := 'https://proxy.api.prebanco.com.br/v1/boleto/registrarBoleto';
+
+  //C_URL             = 'https://openapi.bradesco.com.br/cobranca-bancaria/v2';
+  //C_URL_HOM         = 'https://proxy.api.prebanco.com.br/cobranca-bancaria/v2';
+
+  //C_URL_OAUTH_PROD  = 'https://openapi.bradesco.com.br/auth/server/v1.2/token';
+  //C_URL_OAUTH_HOM   = 'https://proxy.api.prebanco.com.br/auth/server/v1.2/token';
 
   //URL_BASE        = 'https://proxy.api.prebanco.com.br';
   //URL_TOKEN       = 'https://proxy.api.prebanco.com.br/auth/server/v1.1/token';
@@ -124,6 +134,8 @@ begin
 
   ACBrOpenSSLUtils1 := TACBrOpenSSLUtils.Create(Self);
   ACBrOpenSSLUtils1.LoadPFXFromFile(ArquivoPFX, SenhaPFX);
+
+  Agora := Now;
 end;
 
 procedure TFPrincipal.FormDestroy(Sender: TObject);
@@ -153,7 +165,7 @@ var
   strJsonHeader, strPayloadBase: string;
 begin
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
-  dataAtual := AddHoursToDateTime(Now, 3); //Data Atual UTC
+  dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
   intSegundos := DateTimeToUnix(dataAtual); //Data Atual UTC em Segundos.
   intSegundos1h := DateTimeToUnix(AddHoursToDateTime(dataAtual, 1)); //Data Atual UTC em Segundos + Horario 1h
   intMilisegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
@@ -217,13 +229,11 @@ begin
     if objJson.Field['access_token'] <> nil then
       if VarToStr(objJson.Field['access_token'].Value) <> '' then
         editToken.Text := VarToStr(objJson.Field['access_token'].Value);
-    //if Assigned(objJson.Values['access_token']) then
-    //  if (objJson.Values['access_token'].ToString <> EmptyStr) then
-    //    editToken.Text := TJSONString(objJson.Values['access_token']).Value;
 
     if objJson.Field['expires_in'] <> nil then
       if VarToStr(objJson.Field['expires_in'].Value) <> '' then
         lblTokenExpira.Caption := VarToStr(objJson.Field['expires_in'].Value);
+
     //if Assigned(objJson.Values['expires_in']) then
     //  if (objJson.Values['expires_in'].ToString <> EmptyStr) then
     //    lblTokenExpira.Caption := DateTimeToStr(IncSecond(Now, StrToInt(objJson.Values['expires_in'].ToString)));
@@ -254,7 +264,7 @@ var
   arq: TextFile;
 begin
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
-  dataAtual := AddHoursToDateTime(Now, 3); //Data Atual UTC
+  dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
   intMiliSegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
   strTimeStamp := ConverteDateISO(dataAtual, False);
   {*** FIM BLOCO FORMATACAO DA DATA DO PAYLOAD***}
@@ -263,6 +273,7 @@ begin
   objCriaBoleto := TLibBradescoApiCriaBoleto.Create; //Classe contento todos os campos do boleto.
   objCriaBoleto.Clear;
   objCriaBoleto.nroCpfCnpjSacdo := PagadorDocumento; //DOCUMENTO DO CLIENTE.
+  objCriaBoleto.ialiasAdsaoCta := PagadorDocumento; //DOCUMENTO DO CLIENTE.
 
   if (Length(PagadorDocumento) = 11) then
     objCriaBoleto.indCpfCnpjSacdo := 1 //TIPO 1 CPF
@@ -280,37 +291,44 @@ begin
   objCriaBoleto.ebairoLogdrSacdo := PagadorEnderecoBairro; //BAIRRO
   objCriaBoleto.imunSacdoTitlo := PagadorEnderecoMunicipio; //CIDADE CLIENTE
   objCriaBoleto.csglUfSacdo := PagadorEnderecoUF; //UF CLIENTE
-  objCriaBoleto.demisTitloCobr := FormatDateTime('dd.mm.yyyy', Now); //'30.08.2023'; //Data Emissão.
-  objCriaBoleto.dvctoTitloCobr := FormatDateTime('dd.mm.yyyy', AddHoursToDateTime(Now, 24)); //'31.08.2023'; //Data Vencimento.
+  objCriaBoleto.demisTitloCobr := FormatDateTime('dd.mm.yyyy', Agora); //'30.08.2023'; //Data Emissão.
+  objCriaBoleto.dvctoTitloCobr := FormatDateTime('dd.mm.yyyy', AddHoursToDateTime(Agora, 24)); //'31.08.2023'; //Data Vencimento.
 
   strObj := objCriaBoleto.ToString();
   {*** FIM CRIAÇAO DO PAYLOAD DO BOLETO ***}
 
   {*** BLOCO DE ASSINATURA ***}
-  {
-  DFeSSL.SSLCryptLib      := cryOpenSSL;
-  DFeSSL.ArquivoPFX       := 'certificado.pfx';
-  DFeSSL.Senha            := '123456';
+  DFeSSL.SSLCryptLib := cryOpenSSL;
+  DFeSSL.ArquivoPFX := ArquivoPFX;
+  DFeSSL.Senha := SenhaPFX;
   DFeSSL.CarregarCertificado;
-  }
 
-  strList := TStringList.Create;
-  strList.Add('POST'); //Methodo HTTP
-  strList.Add(UrlRegBoleto); //URI de Requisição
-  strList.Add(''); //Parâmetros. quando houver, se não tem deixa linha em branco.
-  strList.Add(strObj); //Json de criação do Boleto que vai no Body.
-  strList.Add(editToken.Text); //Access-token retornado da API.
-  strList.Add(IntToStr(intMiliSegundos)); //Hora Atual em Milisegundos.
-  strList.Add(strTimeStamp); //TimeStamp;
-  strList.Add('SHA256'); //Algoritimo Usado.
+  //strList := TStringList.Create;
+  //strList.Add('POST'); //Methodo HTTP
+  //strList.Add(UrlRegBoleto); //URI de Requisição
+  //strList.Add(''); //Parâmetros. quando houver, se não tem deixa linha em branco.
+  //strList.Add(strObj); //Json de criação do Boleto que vai no Body.
+  //strList.Add(editToken.Text); //Access-token retornado da API.
+  //strList.Add(IntToStr(intMiliSegundos)); //Hora Atual em Milisegundos.
+  //strList.Add(strTimeStamp); //TimeStamp;
+  //strList.Add('SHA256'); //Algoritimo Usado.
 
-  strLinha1 := 'POST'; //Methodo HTTP
-  strLinha2 := UrlRegBoleto; //URI de Requisição
-  strLinha3 := ''; //Parâmetros. quando houver, se não tem deixa linha em branco.
-  strLinha4 := strObj; //Json de criação do Boleto que vai no Body.
-  strLinha5 := editToken.Text; //Access-token retornado da API.
-  strLinha6 := IntToStr(intMiliSegundos); //Hora Atual em Milisegundos.
-  strLinha7 := strTimeStamp; //TimeStamp;
+  //strLinha1 := 'POST'; //Methodo HTTP
+  //strLinha2 := UrlRegBoleto; //URI de Requisição
+  //strLinha3 := ''; //Parâmetros. quando houver, se não tem deixa linha em branco.
+  //strLinha4 := strObj; //Json de criação do Boleto que vai no Body.
+  //strLinha5 := editToken.Text; //Access-token retornado da API.
+  //strLinha6 := IntToStr(intMiliSegundos); //Hora Atual em Milisegundos.
+  //strLinha7 := strTimeStamp; //TimeStamp;
+  //strLinha8 := 'SHA256'; //Algoritimo Usado.
+
+  strLinha1 := 'POST' + #10; //Methodo HTTP
+  strLinha2 := UrlRegBoleto + #10; //URI de Requisição
+  strLinha3 := '' + #10; //Parâmetros. quando houver, se não tem deixa linha em branco.
+  strLinha4 := strObj + #10; //Json de criação do Boleto que vai no Body.
+  strLinha5 := editToken.Text + #10; //Access-token retornado da API.
+  strLinha6 := IntToStr(intMiliSegundos) + #10; //Hora Atual em Milisegundos.
+  strLinha7 := strTimeStamp + #10; //TimeStamp;
   strLinha8 := 'SHA256'; //Algoritimo Usado.
 
   if FileExists('request.txt') then
@@ -340,14 +358,15 @@ begin
 
   //stremRequest := TStringStream.Create(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8); //Aqui vai o arquivo para Assinar.
   //stremRequest.SaveToFile('request.txt');
+  //strRequestAssinado := CalcularHash(stremRequest);//aqui realiza a assinatura.
+
+  //stremRequest := TStringStream.Create(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8); //Aqui vai o arquivo para Assinar.
+  //stremRequest.SaveToFile('request.txt');
   //strRequestAssinado := ObjACBrEAD.CalcularAssinaturaArquivo( 'request.txt', dgstSHA256, outBase64);
   //strRequestAssinado := ObjACBrEAD.CalcularAssinatura(strLinha1+#10+strLinha2+#10+strLinha3+#10+strLinha4+#10+
   //  strLinha5+#10+strLinha6+#10+strLinha7+#10+strLinha8, dgstSHA256, outBase64);
 
-//  strRequestAssinado := TURI.URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
   strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
-  //strRequestAssinado := ACBrOpenSSLUtils1.CalcHashFromString(strLinha1+#10+strLinha2+#10+strLinha3+#10+strLinha4+#10+
-  //  strLinha5+#10+strLinha6+#10+strLinha7+#10+strLinha8, algSHA256, sttBase64, True);
 
   //strRequestAssinadoStream := CalcularHash(stremRequest);//aqui realiza a assinatura.
   //strRequestAssinadoStream := ObjACBrEAD.CalcularAssinatura(stremRequest, dgstSHA256, outBase64);
@@ -401,9 +420,10 @@ begin
 
   FHTTP.Request.CustomHeaders.FoldLines := False;
   FHTTP.Request.ContentType := 'application/json';
+  //FHTTP.Request.ContentType := 'application/x-www-form-urlencoded';
   FHTTP.Request.CustomHeaders.Add('Authorization: Bearer ' + editToken.Text); //TOKEN OBTIDO.
   FHTTP.Request.CustomHeaders.Add('X-Brad-Signature: ' + strRequestAssinado);
-  //FHTTP.Request.CustomHeaders.Add('cpf-cnpj: 00000000000000'); //CNPJ DA EMPRESA
+  FHTTP.Request.CustomHeaders.Add('cpf-cnpj: ' + BeneficiarioDocumento); //CNPJ DA EMPRESA
   FHTTP.Request.CustomHeaders.Add('X-Brad-Nonce: ' + IntToStr(intMiliSegundos));
   FHTTP.Request.CustomHeaders.Add('X-Brad-Timestamp: ' + strTimeStamp);
   FHTTP.Request.CustomHeaders.Add('X-Brad-Algorithm: SHA256');

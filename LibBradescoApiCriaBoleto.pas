@@ -3,7 +3,7 @@ unit LibBradescoApiCriaBoleto;
 interface
 
 uses
-  uLkJSON;
+  uLkJSON, SysUtils;
 
 type
   TLibBradescoApiCriaBoleto = class
@@ -319,7 +319,7 @@ begin
   Ffiller3 := ''; //Implementações futuras
   Ffase := 1; //Fase de atualização do QR Code: 1 = Registro do título e envio ao BSPI 2 = Vinculação do título com QR Code
   FcindcdCobrMisto := 'S'; //Indicador do registro de título com QR Code S = Sim N = Não
-  FialiasAdsaoCta := '07615615000171'; //Chave Pix do beneficiário
+  FialiasAdsaoCta := ''; //Chave Pix do beneficiário
   FiconcPgtoSpi := ''; //TXID do título
   FcaliasAdsaoCta := ''; //Códigos de erro na geração do QR Code pelo BSPI
   FilinkGeracQrcd := ''; //Identificação do location do QR Code gerado pelo BSPI
@@ -341,7 +341,7 @@ end;
 function TLibBradescoApiCriaBoleto.ToString(): string;
 var
   i: Integer;
-  strJson, strPayload: string;
+  strJson: string;
   json: TlkJSONobject;
 begin
   json := TlkJSONobject.Create;
@@ -449,8 +449,8 @@ begin
 
   i := 0;
   strJson := GenerateReadableText(json, i);
-  strPayload := EncodeBase64(strJson);
-  Result := strPayload;
+  strJson := StringReplace(StringReplace(strJson, #13, '', [rfReplaceAll, rfIgnoreCase]), #10, '', [rfReplaceAll, rfIgnoreCase]);
+  Result := strJson;
 end;
 
 end.
