@@ -450,6 +450,10 @@ begin
   i := 0;
   strJson := GenerateReadableText(json, i);
   strJson := Remove_13_10(strJson);
+  strJson := StringReplace(strJson, '  ', ' ', [rfReplaceAll]);
+  strJson := StringReplace(strJson, ', "', ',"', [rfReplaceAll]);
+  strJson := StringReplace(strJson, '{ "', '{"', [rfReplaceAll]);
+
   Result := strJson;
 end;
 

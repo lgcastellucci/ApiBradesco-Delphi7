@@ -93,4 +93,13 @@ object FPrincipal: TFPrincipal
     Height = 209
     TabOrder = 4
   end
+  object btnValidaAcesso: TButton
+    Left = 332
+    Top = 276
+    Width = 114
+    Height = 25
+    Caption = 'Valida Acesso'
+    TabOrder = 5
+    OnClick = btnValidaAcessoClick
+  end
 end

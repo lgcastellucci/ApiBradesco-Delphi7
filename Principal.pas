@@ -17,10 +17,12 @@ type
     lblTokenExpira: TLabel;
     btnCriarBoleto: TButton;
     MemoResp: TMemo;
+    btnValidaAcesso: TButton;
     procedure btnGerarTokenClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnCriarBoletoClick(Sender: TObject);
+    procedure btnValidaAcessoClick(Sender: TObject);
   private
     { Private declarations }
     DFeSSL: TDFeSSL;
@@ -155,7 +157,7 @@ end;
 procedure TFPrincipal.btnGerarTokenClick(Sender: TObject);
 var
   jsonHeader, jsonPayload, objJson: TlkJSONobject;
-  intSegundos, intSegundos1h, intMilisegundos: Int64;
+  intSegundos, intSegundos1h : Int64;
   dataAtual: TDateTime;
   strHeaderBase64, strPayloadBase64, strResult: string;
   strAssinado, strJWS: WideString;
@@ -168,7 +170,8 @@ begin
   dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
   intSegundos := DateTimeToUnix(dataAtual); //Data Atual UTC em Segundos.
   intSegundos1h := DateTimeToUnix(AddHoursToDateTime(dataAtual, 1)); //Data Atual UTC em Segundos + Horario 1h
-  intMilisegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
+  //intMilisegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
+  //intMilisegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
   {*** FIM BLOCO FORMATACAO DA DATA DO PAYLOAD***}
 
   {*** BLOCO MONTAGEM DO HEADER JSON ***}
@@ -190,9 +193,9 @@ begin
   jsonPayload := TlkJSONobject.Create;
   jsonPayload.Add('aud', UrlToken);
   jsonPayload.Add('sub', ClienteID);
-  jsonPayload.Add('iat', IntToStr(intSegundos));
-  jsonPayload.Add('exp', IntToStr(intSegundos1h));
-  jsonPayload.Add('jti', IntToStr(intMilisegundos));
+  jsonPayload.Add('iat', Padr(IntToStr(intSegundos),'0',10));
+  jsonPayload.Add('exp', Padr(IntToStr(intSegundos1h),'0',10));
+  jsonPayload.Add('jti', Padr(IntToStr(intSegundos), '0', 10) + '000');
   jsonPayload.Add('ver', '1.1');
   i := 0;
   strPayloadBase := GenerateReadableText(jsonPayload, i);
@@ -264,21 +267,23 @@ procedure TFPrincipal.btnCriarBoletoClick(Sender: TObject);
 var
   strResult: string;
   objJson: TlkJSONobject;
+  strMiliSegundos : string;
   strTimeStamp, strObj, strLinha1, strLinha2, strLinha3, strLinha4, strLinha5, strLinha6, strLinha7, strLinha8: string;
-  intMiliSegundos: int64;
   dataAtual: TDateTime;
   stremRequest: TStringStream;
-  strRequestAssinado, strRequestAssinadoList, strRequestAssinadoStream, strRequestAssinadoAnsiString: WideString;
+  strRequestAssinado, strRequestAssinadoList, strRequestAssinadoStream, strRequestAssinadoAnsiString: string;
   xRequestBody: TStringStream;
   objCriaBoleto: TLibBradescoApiCriaBoleto;
   strList: TStringList;
   streamstr: TStringStream;
   arq: TextFile;
+  FileStream: TFileStream;
 begin
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
   dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
-  intMiliSegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
-  strTimeStamp := ConverteDateISO(dataAtual, False);
+  strMiliSegundos := Padr(IntToStr(DateTimeToUnix(dataAtual)), '0', 10) + '000'; //Data Atual UTC em Milisegundos.
+  //intMiliSegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
+  strTimeStamp := ConverteDateISO(dataAtual, True);
   {*** FIM BLOCO FORMATACAO DA DATA DO PAYLOAD***}
 
   {*** CRIAÇAO DO PAYLOAD DO BOLETO ***}
@@ -339,37 +344,50 @@ begin
   strLinha3 := '' + #10; //Parâmetros. quando houver, se não tem deixa linha em branco.
   strLinha4 := strObj + #10; //Json de criação do Boleto que vai no Body.
   strLinha5 := editToken.Text + #10; //Access-token retornado da API.
-  strLinha6 := IntToStr(intMiliSegundos) + #10; //Hora Atual em Milisegundos.
+  strLinha6 := strMiliSegundos + #10; //Hora Atual em Milisegundos.
   strLinha7 := strTimeStamp + #10; //TimeStamp;
   strLinha8 := 'SHA256'; //Algoritimo Usado.
 
   if FileExists('request.txt') then
     DeleteFile('request.txt');
 
-  AssignFile(arq, 'request.txt');
-  SetLineBreakStyle(arq, tlbsLF);
-  {$I-}
-  Reset(arq);
-  {$I+}
-  if (IOResult <> 0) then
-    Rewrite(arq) { arquivo não existe e será criado }
-  else
-  begin
-    CloseFile(arq);
-    Append(arq); { o arquivo existe e será aberto para saídas adicionais }
-  end;
-  Writeln(arq, strLinha1);
-  Writeln(arq, strLinha2);
-  Writeln(arq, strLinha3);
-  Writeln(arq, strLinha4);
-  Writeln(arq, strLinha5);
-  Writeln(arq, strLinha6);
-  Writeln(arq, strLinha7);
-  Writeln(arq, strLinha8);
-  CloseFile(arq); { fecha o arquivo texto aberto }
 
-  //stremRequest := TStringStream.Create(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8); //Aqui vai o arquivo para Assinar.
-  //stremRequest.SaveToFile('request.txt');
+  //AssignFile(arq, 'request.txt');
+  //SetLineBreakStyle(arq, tlbsLF);
+  //{$I-}
+  //Reset(arq);
+  //{$I+}
+  //if (IOResult <> 0) then
+  //  Rewrite(arq) { arquivo não existe e será criado }
+  //else
+  //begin
+  //  CloseFile(arq);
+  //  Append(arq); { o arquivo existe e será aberto para saídas adicionais }
+  //end;
+  //Writeln(arq, strLinha1);
+  //Writeln(arq, strLinha2);
+  //Writeln(arq, strLinha3);
+  //Writeln(arq, strLinha4);
+  //Writeln(arq, strLinha5);
+  //Writeln(arq, strLinha6);
+  //Writeln(arq, strLinha7);
+  //Writeln(arq, strLinha8);
+  ///CloseFile(arq); { fecha o arquivo texto aberto }
+
+  stremRequest := TStringStream.Create(strLinha1 + strLinha2 + strLinha3 + strLinha4 + strLinha5 + strLinha6 + strLinha7 + strLinha8); //Aqui vai o arquivo para Assinar.
+  FileStream := TFileStream.Create('request.txt', fmCreate);
+  try
+    // Define a posição inicial no TStringStream
+    stremRequest.Position := 0;
+    // Copia o conteúdo do TStringStream para o TFileStream
+    FileStream.CopyFrom(stremRequest, stremRequest.Size);
+  finally
+    // Libera a memória usada pelo TFileStream
+    FileStream.Free;
+  end;
+
+  strRequestAssinado := URLEncode(CalcularHashArquivo(DFeSSL, 'request.txt')); //aqui realiza a assinatura.
+
   //strRequestAssinado := CalcularHash(stremRequest);//aqui realiza a assinatura.
 
   //stremRequest := TStringStream.Create(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8); //Aqui vai o arquivo para Assinar.
@@ -432,19 +450,116 @@ begin
 
   FHTTP.Request.CustomHeaders.FoldLines := False;
   FHTTP.Request.ContentType := 'application/json';
-  //FHTTP.Request.ContentType := 'application/x-www-form-urlencoded';
   FHTTP.Request.CustomHeaders.Add('Authorization: Bearer ' + editToken.Text); //TOKEN OBTIDO.
+  FHTTP.Request.CustomHeaders.Add('X-Brad-Nonce: ' + strMiliSegundos);
   FHTTP.Request.CustomHeaders.Add('X-Brad-Signature: ' + strRequestAssinado);
-  FHTTP.Request.CustomHeaders.Add('cpf-cnpj: ' + BeneficiarioDocumento); //CNPJ DA EMPRESA
-  FHTTP.Request.CustomHeaders.Add('X-Brad-Nonce: ' + IntToStr(intMiliSegundos));
   FHTTP.Request.CustomHeaders.Add('X-Brad-Timestamp: ' + strTimeStamp);
   FHTTP.Request.CustomHeaders.Add('X-Brad-Algorithm: SHA256');
+  FHTTP.Request.CustomHeaders.Add('access-token: ' + ClienteID);
+  FHTTP.Request.CustomHeaders.Add('Content-Type: ' + 'application/json');
+  //FHTTP.Request.CustomHeaders.Add('cpf-cnpj: ' + BeneficiarioDocumento); //CNPJ DA EMPRESA
   {*** FIM MONTAGEM DO HEADER ***}
 
   xRequestBody := TStringStream.Create(strObj); //Preenche o Body para enviar no Post.
 
   try
     strResult := FHTTP.Post(UrlCriaBoleto, xRequestBody); //Envia.
+    MemoResp.lines.add(strResult);
+
+    objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
+
+  except
+    on E: EIdHTTPProtocolException do
+    begin
+      MemoResp.Lines.add(E.ErrorMessage);
+    end;
+  end;
+
+  FreeAndNil(xRequestBody);
+  FreeAndNil(strList);
+  //FreeAndNil(streamstr);
+end;
+
+procedure TFPrincipal.btnValidaAcessoClick(Sender: TObject);
+var
+  strResult: string;
+  objJson: TlkJSONobject;
+  strMiliSegundos : string;
+  strTimeStamp, strLinha1, strLinha2, strLinha3, strLinha4, strLinha5, strLinha6, strLinha7, strLinha8: string;
+  dataAtual: TDateTime;
+  stremRequest: TStringStream;
+  strRequestAssinado, strRequestAssinadoList, strRequestAssinadoStream, strRequestAssinadoAnsiString: string;
+  xRequestBody: TStringStream;
+  strList: TStringList;
+  streamstr: TStringStream;
+  arq: TextFile;
+  FileStream: TFileStream;
+begin
+  {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
+  dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
+  strMiliSegundos := Padr(IntToStr(DateTimeToUnix(dataAtual)), '0', 10) + '000'; //Data Atual UTC em Milisegundos.
+  //intMiliSegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
+  strTimeStamp := ConverteDateISO(dataAtual, True);
+  {*** FIM BLOCO FORMATACAO DA DATA DO PAYLOAD***}
+
+  {*** BLOCO DE ASSINATURA ***}
+  DFeSSL.SSLCryptLib := cryOpenSSL;
+  DFeSSL.ArquivoPFX := ArquivoPFX;
+  DFeSSL.Senha := SenhaPFX;
+  DFeSSL.CarregarCertificado;
+
+  strLinha1 := 'POST' + #10; //Methodo HTTP
+  strLinha2 := '/v1.1/jwt-service' + #10; //URI de Requisição
+  strLinha3 := 'agencia=552&conta=331' + #10; //Parâmetros
+  strLinha4 := '' + #10; //Body.
+  strLinha5 := editToken.Text + #10; //Access-token retornado da API.
+  strLinha6 := strMiliSegundos + #10; //Hora Atual em Milisegundos.
+  strLinha7 := strTimeStamp + #10; //TimeStamp;
+  strLinha8 := 'SHA256'; //Algoritimo Usado.
+
+  if FileExists('request.txt') then
+    DeleteFile('request.txt');
+
+  stremRequest := TStringStream.Create(strLinha1 + strLinha2 + strLinha3 + strLinha4 + strLinha5 + strLinha6 + strLinha7 + strLinha8); //Aqui vai o arquivo para Assinar.
+  FileStream := TFileStream.Create('request.txt', fmCreate);
+  try
+    // Define a posição inicial no TStringStream
+    stremRequest.Position := 0;
+    // Copia o conteúdo do TStringStream para o TFileStream
+    FileStream.CopyFrom(stremRequest, stremRequest.Size);
+  finally
+    // Libera a memória usada pelo TFileStream
+    FileStream.Free;
+  end;
+
+  strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
+
+  {*** FIM BLOCO DE ASSINATURA ***}
+
+  {*** MONTAGEM DO HEADER ***}
+  FHTTP.Request.Clear;
+  FHTTP.Request.CustomHeaders.Clear;
+  FHTTP.Request.UserAgent := 'Mozilla/4.0 (compatible; MSIE 7.0; Windows NT 6.0; Acoo Browser; GTB5; Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1) ; Maxthon; InfoPath.1; .NET CLR 3.5.30729; .NET CLR 3.0.30618)';
+  FHTTP.Request.Accept := '*/*';
+  FHTTP.Request.AcceptEncoding := 'gzip, deflate, br';
+  FHTTP.Request.BasicAuthentication := False;
+  FHTTP.Request.Connection := 'keep-alive';
+
+  FHTTP.Request.CustomHeaders.FoldLines := False;
+  FHTTP.Request.ContentType := 'application/json';
+  FHTTP.Request.CustomHeaders.Add('Authorization: Bearer ' + editToken.Text); //TOKEN OBTIDO.
+  FHTTP.Request.CustomHeaders.Add('X-Brad-Nonce: ' + strMiliSegundos);
+  FHTTP.Request.CustomHeaders.Add('X-Brad-Signature: ' + strRequestAssinado);
+  FHTTP.Request.CustomHeaders.Add('X-Brad-Timestamp: ' + strTimeStamp);
+  FHTTP.Request.CustomHeaders.Add('X-Brad-Algorithm: SHA256');
+  FHTTP.Request.CustomHeaders.Add('access-token: ' + ClienteID);
+  FHTTP.Request.CustomHeaders.Add('Content-Type: ' + 'application/json');
+  {*** FIM MONTAGEM DO HEADER ***}
+
+  xRequestBody := TStringStream.Create(''); //Preenche o Body para enviar no Post.
+
+  try
+    strResult := FHTTP.Post('https://proxy.api.prebanco.com.br/auth/server/v1.1/jwt-service?agencia=552&conta=331', xRequestBody); //Envia.
     MemoResp.lines.add(strResult);
 
     objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
