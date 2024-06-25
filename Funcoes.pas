@@ -11,7 +11,8 @@ function MilliSecondsBetween(const ANow, AThen: TDateTime): Int64;
 function CalcularHash(var DFeSSL_Local: TDFeSSL; AAut: TStream): string;
 function ConverteDateISO(AData: TDateTime; AInputIsUTC : Boolean = True): String;
 function URLEncode(const S: string): string;
-function Remove_13_10(const S: string): string;
+function RemoveCaracterNaoUtilizadoNoJson(strJson: string): string;
+procedure RemoveCaracterIgual(var conteudo: string);
 function CalcularHashArquivo(var DFeSSL_Local: TDFeSSL; NomeArquivo: string): string;
 function Padr(Frase: string; Caracter:Char; nTamanho: Integer): string;
 
@@ -27,7 +28,7 @@ function EncodeBase64Comunix(const inStr: string): string;
   begin 
     Result := Char(Base64Code[(b and $3F)+1]); 
   end; 
-var 
+var
   i: Integer; 
 begin 
   i := 1; 
@@ -78,7 +79,7 @@ end;
 
 function CalcularHashArquivo(var DFeSSL_Local: TDFeSSL; NomeArquivo: string): string;
 begin
-  Result := DFeSSL_Local.CalcHashArquivo(NomeArquivo, dgstSHA256, outHexa, True);
+  Result := DFeSSL_Local.CalcHashArquivo(NomeArquivo, dgstSHA256, outBase64, True);
 
   // Remover caracteres de preenchimento '='
   while (Length(Result) > 0) and (Result[Length(Result)] = '=') do
@@ -113,9 +114,19 @@ begin
   end;
 end;
 
-function Remove_13_10(const S: string): string;
+function RemoveCaracterNaoUtilizadoNoJson(strJson: string): string;
 begin
-  Result := StringReplace(S, #13#10, '', [rfReplaceAll, rfIgnoreCase]);
+  strJson := StringReplace(strJson, #13#10, '', [rfReplaceAll, rfIgnoreCase]);
+  strJson := StringReplace(strJson, '  ', ' ', [rfReplaceAll]);
+  strJson := StringReplace(strJson, ', "', ',"', [rfReplaceAll]);
+  strJson := StringReplace(strJson, '{ "', '{"', [rfReplaceAll]);
+  Result := strJson;
+end;
+
+procedure RemoveCaracterIgual(var conteudo: string);
+begin
+  while (Length(conteudo) > 0) and (conteudo[Length(conteudo)] = '=') do
+    SetLength(conteudo, Length(conteudo) - 1);
 end;
 
 function Padr(Frase: string; Caracter:Char; nTamanho: Integer): string;

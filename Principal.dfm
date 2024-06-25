@@ -2,7 +2,7 @@ object FPrincipal: TFPrincipal
   Left = 402
   Top = 147
   Width = 489
-  Height = 578
+  Height = 562
   Caption = 'FPrincipal'
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -77,14 +77,14 @@ object FPrincipal: TFPrincipal
     Height = 21
     TabOrder = 2
   end
-  object btnCriarBoleto: TButton
+  object btnRegistraBoleto: TButton
     Left = 10
     Top = 276
     Width = 148
     Height = 25
-    Caption = 'Criar Boleto'
+    Caption = 'Registra Boleto'
     TabOrder = 3
-    OnClick = btnCriarBoletoClick
+    OnClick = btnRegistraBoletoClick
   end
   object MemoResp: TMemo
     Left = 8
@@ -94,7 +94,7 @@ object FPrincipal: TFPrincipal
     TabOrder = 4
   end
   object btnValidaAcesso: TButton
-    Left = 332
+    Left = 333
     Top = 276
     Width = 114
     Height = 25

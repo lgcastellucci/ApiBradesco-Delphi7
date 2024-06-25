@@ -15,23 +15,24 @@ type
     editToken: TEdit;
     Label2: TLabel;
     lblTokenExpira: TLabel;
-    btnCriarBoleto: TButton;
+    btnRegistraBoleto: TButton;
     MemoResp: TMemo;
     btnValidaAcesso: TButton;
     procedure btnGerarTokenClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure btnCriarBoletoClick(Sender: TObject);
+    procedure btnRegistraBoletoClick(Sender: TObject);
     procedure btnValidaAcessoClick(Sender: TObject);
   private
     { Private declarations }
     DFeSSL: TDFeSSL;
-    FSSLDigest               : TSSLDgst;
-    FSSLHashOutput           : TSSLHashOutput;
+    FSSLDigest: TSSLDgst;
+    FSSLHashOutput: TSSLHashOutput;
     //ObjACBrEAD: TACBrEAD;
     FIdSSLIOHandlerSocketOpenSSL: TIdSSLIOHandlerSocketOpenSSL;
     ACBrOpenSSLUtils1: TACBrOpenSSLUtils;
     FHTTP: TIdHTTP;
+    procedure InsereLog(Dado: string);
   public
     { Public declarations }
     procedure ACBrEADGetChavePrivada(var Chave: string);
@@ -39,11 +40,11 @@ type
 
 var
   FPrincipal: TFPrincipal;
-  UrlToken, UrlRegBoleto, UrlCriaBoleto: string;
+  UrlToken, UrlTokenNoRequest, UrlRegBoleto, UrlRegBoletoNoRequest: string;
   ClienteID, ClientSecret: string;
   ArquivoPFX, SenhaPFX: string;
   PagadorDocumento, PagadorNome, PagadorEnderecoRua, PagadorEnderecoNumero, PagadorEnderecoCep, PagadorEnderecoBairro, PagadorEnderecoMunicipio, PagadorEnderecoUF: string;
-  BeneficiarioDocumento: string;
+  BeneficiarioDocumento, BeneficiarioCarteira, BeneficiarioAgencia, BeneficiarioConta: string;
   Agora: TDateTime;
 
 implementation
@@ -53,13 +54,44 @@ uses
 
 {$R *.dfm}
 
+procedure TFPrincipal.InsereLog(Dado: string);
+var
+  LogFile: TextFile;
+  LogNomeArquiovo: string;
+begin
+  try
+    LogNomeArquiovo := ExtractFilePath(Application.ExeName) + 'Log_' + FormatDateTime('YYYY_MM_DD', Now) + '.txt';
+
+    AssignFile(LogFile, LogNomeArquiovo);
+    if FileExists(LogNomeArquiovo) then
+      Append(LogFile)
+    else
+      Rewrite(LogFile);
+
+    Try
+      Writeln(LogFile, FormatDateTime('DD/MM/YYYY HH:NN:SS', Now) +  ' => ' + Dado);
+      Flush(LogFile);
+    Except
+    End;
+
+    CloseFile(LogFile);
+  except
+    // Nao foi possivel gravar
+  end;
+end;
+
 procedure TFPrincipal.FormCreate(Sender: TObject);
 var
   IniFile: TIniFile;
 begin
+  //ProdUrlToken := 'https://openapi.bradesco.com.br/auth/server/v1.1/token';
+  //ProdUrlTokenNoRequest := 'https://openapi.bradesco.com.br/auth/server/v1.1/token';
+
   UrlToken := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/token';
-  UrlRegBoleto := '/v1/boleto/registrarBoleto';
-  UrlCriaBoleto := 'https://proxy.api.prebanco.com.br/v1/boleto/registrarBoleto';
+  UrlTokenNoRequest := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/token';
+
+  UrlRegBoleto := 'https://proxy.api.prebanco.com.br/v1/boleto-hibrido/registrar-boleto';
+  UrlRegBoletoNoRequest := '/v1/boleto-hibrido/registrar-boleto';
 
   //C_URL             = 'https://openapi.bradesco.com.br/cobranca-bancaria/v2';
   //C_URL_HOM         = 'https://proxy.api.prebanco.com.br/cobranca-bancaria/v2';
@@ -106,6 +138,9 @@ begin
       ClientSecret := IniFile.ReadString('Configuracoes', 'ClientSecret', '');
 
     BeneficiarioDocumento := IniFile.ReadString('Configuracoes', 'BeneficiarioDocumento', '');
+    BeneficiarioCarteira := IniFile.ReadString('Configuracoes', 'BeneficiarioCarteira', '');
+    BeneficiarioAgencia := IniFile.ReadString('Configuracoes', 'BeneficiarioAgencia', '');
+    BeneficiarioConta := IniFile.ReadString('Configuracoes', 'BeneficiarioConta', '');
 
     PagadorDocumento := IniFile.ReadString('Configuracoes', 'PagadorDocumento', '');
     PagadorNome := IniFile.ReadString('Configuracoes', 'PagadorNome', '');
@@ -115,6 +150,9 @@ begin
     PagadorEnderecoBairro := IniFile.ReadString('Configuracoes', 'PagadorEnderecoBairro', '');
     PagadorEnderecoMunicipio := IniFile.ReadString('Configuracoes', 'PagadorEnderecoMunicipio', '');
     PagadorEnderecoUF := IniFile.ReadString('Configuracoes', 'PagadorEnderecoUF', '');
+
+    //if IniFile.ReadString('Configuracoes', 'UrlToken', '') <> '' then
+    //  UrlToken := IniFile.ReadString('Configuracoes', 'UrlToken', '');
 
     IniFile.Free;
   end;
@@ -157,7 +195,7 @@ end;
 procedure TFPrincipal.btnGerarTokenClick(Sender: TObject);
 var
   jsonHeader, jsonPayload, objJson: TlkJSONobject;
-  intSegundos, intSegundos1h : Int64;
+  intSegundos, intSegundos1h, intMilisegundos: Int64;
   dataAtual: TDateTime;
   strHeaderBase64, strPayloadBase64, strResult: string;
   strAssinado, strJWS: WideString;
@@ -166,12 +204,13 @@ var
   i: Integer;
   strJsonHeader, strPayloadBase: string;
 begin
+  InsereLog('Inicio GerarToken');
+
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
   dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
   intSegundos := DateTimeToUnix(dataAtual); //Data Atual UTC em Segundos.
   intSegundos1h := DateTimeToUnix(AddHoursToDateTime(dataAtual, 1)); //Data Atual UTC em Segundos + Horario 1h
-  //intMilisegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
-  //intMilisegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
+  intMilisegundos := DateTimeToUnix(dataAtual) * 1000 + MilliSecondsBetween(dataAtual, Trunc(dataAtual)); //Data Atual UTC em Milisegundos.
   {*** FIM BLOCO FORMATACAO DA DATA DO PAYLOAD***}
 
   {*** BLOCO MONTAGEM DO HEADER JSON ***}
@@ -180,32 +219,37 @@ begin
   jsonHeader.Add('typ', 'JWT');
   i := 0;
   strJsonHeader := GenerateReadableText(jsonHeader, i);
-  strJsonHeader := Remove_13_10(strJsonHeader);
+  strJsonHeader := RemoveCaracterNaoUtilizadoNoJson(strJsonHeader);
   strHeaderBase64 := EncodeBase64(strJsonHeader);
+  RemoveCaracterIgual(strHeaderBase64);
 
-  // Remover caracteres de preenchimento '='
-  while (Length(strHeaderBase64) > 0) and (strHeaderBase64[Length(strHeaderBase64)] = '=') do
-    SetLength(strHeaderBase64, Length(strHeaderBase64) - 1);
+  InsereLog('strJsonHeader');
+  InsereLog(strJsonHeader);
   {*** FIM BLOCO MONTAGEM DO HEADER JSON ***}
   
 
   {*** BLOCO MONTAGEM DO PAYLOAD JSON ***}
   jsonPayload := TlkJSONobject.Create;
-  jsonPayload.Add('aud', UrlToken);
+  jsonPayload.Add('aud', UrlTokenNoRequest);
   jsonPayload.Add('sub', ClienteID);
-  jsonPayload.Add('iat', Padr(IntToStr(intSegundos),'0',10));
-  jsonPayload.Add('exp', Padr(IntToStr(intSegundos1h),'0',10));
+  jsonPayload.Add('iat', Padr(IntToStr(intSegundos), '0', 10));
+  jsonPayload.Add('exp', Padr(IntToStr(intSegundos1h), '0', 10));
   jsonPayload.Add('jti', Padr(IntToStr(intSegundos), '0', 10) + '000');
+
+  //jsonPayload.Add('iat', IntToStr(intSegundos));
+  //jsonPayload.Add('exp', IntToStr(intSegundos1h));
+  //jsonPayload.Add('jti', IntToStr(intMilisegundos));
+
   jsonPayload.Add('ver', '1.1');
   i := 0;
   strPayloadBase := GenerateReadableText(jsonPayload, i);
-  strPayloadBase := Remove_13_10(strPayloadBase);
+  strPayloadBase := RemoveCaracterNaoUtilizadoNoJson(strPayloadBase);
+
   strPayloadBase64 := EncodeBase64(strPayloadBase);
+  RemoveCaracterIgual(strPayloadBase64);
 
-  // Remover caracteres de preenchimento '='
-  while (Length(strPayloadBase64) > 0) and (strPayloadBase64[Length(strPayloadBase64)] = '=') do
-    SetLength(strPayloadBase64, Length(strPayloadBase64) - 1);
-
+  InsereLog('strPayloadBase');
+  InsereLog(strPayloadBase);
   {*** FIM BLOCO MONTAGEM DO PAYLOAD JSON ***}
 
   {*** BLOCO DE ASSINATURA ***}
@@ -218,6 +262,8 @@ begin
   strAssinado := CalcularHash(DFeSSL, streamHeaderPayload); //aqui realiza a assinatura.
 
   strJWS := strHeaderBase64 + '.' + strPayloadBase64 + '.' + strAssinado; //HeaderBase64 + PayloadBase64 + JWT assinado = JWS.
+  InsereLog('strJWS');
+  InsereLog(strJWS);
   {*** FIM BLOCO DE ASSINATURA ***}
 
   {*** BLOCO DE MONTAGEM DO BODY ***}
@@ -237,6 +283,10 @@ begin
   try
     strResult := FHTTP.Post(UrlToken, xRequestBody);
     MemoRespToken.lines.add(strResult);
+    
+    InsereLog('strResult');
+    InsereLog(strResult);
+
 
     objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
     //objJson := TJSONObject.ParseJSONValue(TEncoding.UTF8.GetBytes(strResult), 0) as TJSONObject;
@@ -261,13 +311,14 @@ begin
 
   FreeAndNil(xRequestBody);
 
+  InsereLog('Fim GerarToken');
 end;
 
-procedure TFPrincipal.btnCriarBoletoClick(Sender: TObject);
+procedure TFPrincipal.btnRegistraBoletoClick(Sender: TObject);
 var
   strResult: string;
   objJson: TlkJSONobject;
-  strMiliSegundos : string;
+  strMiliSegundos: string;
   strTimeStamp, strObj, strLinha1, strLinha2, strLinha3, strLinha4, strLinha5, strLinha6, strLinha7, strLinha8: string;
   dataAtual: TDateTime;
   stremRequest: TStringStream;
@@ -279,6 +330,11 @@ var
   arq: TextFile;
   FileStream: TFileStream;
 begin
+  if editToken.Text = '' then
+    Exit;
+    
+  InsereLog('Inicio RegistraBoleto');
+
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
   dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
   strMiliSegundos := Padr(IntToStr(DateTimeToUnix(dataAtual)), '0', 10) + '000'; //Data Atual UTC em Milisegundos.
@@ -312,6 +368,9 @@ begin
   objCriaBoleto.dvctoTitloCobr := FormatDateTime('dd.mm.yyyy', AddHoursToDateTime(Agora, 24)); //'31.08.2023'; //Data Vencimento.
 
   strObj := objCriaBoleto.ToString();
+
+  InsereLog('strObj');
+  InsereLog(strObj);
   {*** FIM CRIAÇAO DO PAYLOAD DO BOLETO ***}
 
   {*** BLOCO DE ASSINATURA ***}
@@ -340,7 +399,7 @@ begin
   //strLinha8 := 'SHA256'; //Algoritimo Usado.
 
   strLinha1 := 'POST' + #10; //Methodo HTTP
-  strLinha2 := UrlRegBoleto + #10; //URI de Requisição
+  strLinha2 := UrlRegBoletoNoRequest + #10; //URI de Requisição
   strLinha3 := '' + #10; //Parâmetros. quando houver, se não tem deixa linha em branco.
   strLinha4 := strObj + #10; //Json de criação do Boleto que vai no Body.
   strLinha5 := editToken.Text + #10; //Access-token retornado da API.
@@ -385,6 +444,9 @@ begin
     // Libera a memória usada pelo TFileStream
     FileStream.Free;
   end;
+
+  InsereLog('request.txt');
+  InsereLog(strLinha1 + strLinha2 + strLinha3 + strLinha4 + strLinha5 + strLinha6 + strLinha7 + strLinha8);
 
   strRequestAssinado := URLEncode(CalcularHashArquivo(DFeSSL, 'request.txt')); //aqui realiza a assinatura.
 
@@ -463,11 +525,12 @@ begin
   xRequestBody := TStringStream.Create(strObj); //Preenche o Body para enviar no Post.
 
   try
-    strResult := FHTTP.Post(UrlCriaBoleto, xRequestBody); //Envia.
+    strResult := FHTTP.Post(UrlRegBoleto, xRequestBody); //Envia.
     MemoResp.lines.add(strResult);
 
-    objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
-
+    InsereLog('strResult');
+    InsereLog(strResult);
+    
   except
     on E: EIdHTTPProtocolException do
     begin
@@ -478,13 +541,14 @@ begin
   FreeAndNil(xRequestBody);
   FreeAndNil(strList);
   //FreeAndNil(streamstr);
+  InsereLog('Fim RegistraBoleto');
 end;
 
 procedure TFPrincipal.btnValidaAcessoClick(Sender: TObject);
 var
   strResult: string;
   objJson: TlkJSONobject;
-  strMiliSegundos : string;
+  strMiliSegundos: string;
   strTimeStamp, strLinha1, strLinha2, strLinha3, strLinha4, strLinha5, strLinha6, strLinha7, strLinha8: string;
   dataAtual: TDateTime;
   stremRequest: TStringStream;
@@ -494,7 +558,16 @@ var
   streamstr: TStringStream;
   arq: TextFile;
   FileStream: TFileStream;
+  urlValidaAcesso :string;
 begin
+  if editToken.Text = '' then
+    btnGerarToken.Click;
+
+  if editToken.Text = '' then
+    Exit;
+
+  InsereLog('Inicio ValidaAcesso');
+
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
   dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
   strMiliSegundos := Padr(IntToStr(DateTimeToUnix(dataAtual)), '0', 10) + '000'; //Data Atual UTC em Milisegundos.
@@ -508,9 +581,10 @@ begin
   DFeSSL.Senha := SenhaPFX;
   DFeSSL.CarregarCertificado;
 
+  urlValidaAcesso := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/jwt-service?agencia=' + BeneficiarioAgencia + '&conta=' + BeneficiarioConta;
   strLinha1 := 'POST' + #10; //Methodo HTTP
   strLinha2 := '/v1.1/jwt-service' + #10; //URI de Requisição
-  strLinha3 := 'agencia=552&conta=331' + #10; //Parâmetros
+  strLinha3 := 'agencia=' + BeneficiarioAgencia + '&conta=' + BeneficiarioConta + #10; //Parâmetros
   strLinha4 := '' + #10; //Body.
   strLinha5 := editToken.Text + #10; //Access-token retornado da API.
   strLinha6 := strMiliSegundos + #10; //Hora Atual em Milisegundos.
@@ -532,7 +606,8 @@ begin
     FileStream.Free;
   end;
 
-  strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
+  strRequestAssinado := URLEncode(CalcularHashArquivo(DFeSSL, 'request.txt')); //aqui realiza a assinatura.
+  //strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
 
   {*** FIM BLOCO DE ASSINATURA ***}
 
@@ -556,12 +631,18 @@ begin
   FHTTP.Request.CustomHeaders.Add('Content-Type: ' + 'application/json');
   {*** FIM MONTAGEM DO HEADER ***}
 
+  InsereLog('HTTP Headers');
+  InsereLog(FHTTP.Request.CustomHeaders.Text);
+
   xRequestBody := TStringStream.Create(''); //Preenche o Body para enviar no Post.
 
   try
-    strResult := FHTTP.Post('https://proxy.api.prebanco.com.br/auth/server/v1.1/jwt-service?agencia=552&conta=331', xRequestBody); //Envia.
+    strResult := FHTTP.Post(urlValidaAcesso, xRequestBody); //Envia.
     MemoResp.lines.add(strResult);
 
+    InsereLog('strResult');
+    InsereLog(strResult);
+        
     objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
 
   except
@@ -574,6 +655,8 @@ begin
   FreeAndNil(xRequestBody);
   FreeAndNil(strList);
   //FreeAndNil(streamstr);
+
+  InsereLog('Fim ValidaAcesso');  
 end;
 
 end.
