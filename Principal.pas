@@ -68,11 +68,11 @@ begin
     else
       Rewrite(LogFile);
 
-    Try
-      Writeln(LogFile, FormatDateTime('DD/MM/YYYY HH:NN:SS', Now) +  ' => ' + Dado);
+    try
+      Writeln(LogFile, FormatDateTime('DD/MM/YYYY HH:NN:SS', Now) + ' => ' + Dado);
       Flush(LogFile);
-    Except
-    End;
+    except
+    end;
 
     CloseFile(LogFile);
   except
@@ -87,7 +87,7 @@ begin
   //ProdUrlToken := 'https://openapi.bradesco.com.br/auth/server/v1.1/token';
   //ProdUrlTokenNoRequest := 'https://openapi.bradesco.com.br/auth/server/v1.1/token';
 
-  UrlToken := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/token';
+  UrlToken := 'https://proxy.api.prebanco.com.br/auth/server/v1.2/token';
   UrlTokenNoRequest := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/token';
 
   UrlRegBoleto := 'https://proxy.api.prebanco.com.br/v1/boleto-hibrido/registrar-boleto';
@@ -223,8 +223,7 @@ begin
   strHeaderBase64 := EncodeBase64(strJsonHeader);
   RemoveCaracterIgual(strHeaderBase64);
 
-  InsereLog('strJsonHeader');
-  InsereLog(strJsonHeader);
+  InsereLog('strJsonHeader ==> ' + strJsonHeader);
   {*** FIM BLOCO MONTAGEM DO HEADER JSON ***}
   
 
@@ -248,8 +247,7 @@ begin
   strPayloadBase64 := EncodeBase64(strPayloadBase);
   RemoveCaracterIgual(strPayloadBase64);
 
-  InsereLog('strPayloadBase');
-  InsereLog(strPayloadBase);
+  InsereLog('strPayloadBase ==> ' + strPayloadBase);
   {*** FIM BLOCO MONTAGEM DO PAYLOAD JSON ***}
 
   {*** BLOCO DE ASSINATURA ***}
@@ -262,8 +260,7 @@ begin
   strAssinado := CalcularHash(DFeSSL, streamHeaderPayload); //aqui realiza a assinatura.
 
   strJWS := strHeaderBase64 + '.' + strPayloadBase64 + '.' + strAssinado; //HeaderBase64 + PayloadBase64 + JWT assinado = JWS.
-  InsereLog('strJWS');
-  InsereLog(strJWS);
+  InsereLog('strJWS ==> ' + strJWS);
   {*** FIM BLOCO DE ASSINATURA ***}
 
   {*** BLOCO DE MONTAGEM DO BODY ***}
@@ -283,10 +280,11 @@ begin
   try
     strResult := FHTTP.Post(UrlToken, xRequestBody);
     MemoRespToken.lines.add(strResult);
-    
-    InsereLog('strResult');
-    InsereLog(strResult);
 
+    InsereLog('UrlToken ==> ' + UrlToken);
+    for i := 0 to xRequestBody.Count - 1 do
+      InsereLog('xRequestBody ==> ' + xRequestBody[i]);
+    InsereLog('httpResult ==> ' + strResult);
 
     objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
     //objJson := TJSONObject.ParseJSONValue(TEncoding.UTF8.GetBytes(strResult), 0) as TJSONObject;
@@ -305,6 +303,8 @@ begin
   except
     on E: EIdHTTPProtocolException do
     begin
+      InsereLog('httpResult ==> ' + strResult);
+      InsereLog('ErrorMessage ==> ' + E.ErrorMessage);
       MemoRespToken.Lines.add(E.ErrorMessage);
     end;
   end;
@@ -312,6 +312,8 @@ begin
   FreeAndNil(xRequestBody);
 
   InsereLog('Fim GerarToken');
+  InsereLog('');
+
 end;
 
 procedure TFPrincipal.btnRegistraBoletoClick(Sender: TObject);
@@ -329,10 +331,11 @@ var
   streamstr: TStringStream;
   arq: TextFile;
   FileStream: TFileStream;
+  i: Integer;
 begin
   if editToken.Text = '' then
     Exit;
-    
+
   InsereLog('Inicio RegistraBoleto');
 
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
@@ -368,6 +371,9 @@ begin
   objCriaBoleto.dvctoTitloCobr := FormatDateTime('dd.mm.yyyy', AddHoursToDateTime(Agora, 24)); //'31.08.2023'; //Data Vencimento.
 
   strObj := objCriaBoleto.ToString();
+
+  //boleto padrão enviado em um modelo de API fornecido pelo banco
+  strObj := objCriaBoleto.stringApiModeloDoBanco();
 
   InsereLog('strObj');
   InsereLog(strObj);
@@ -525,15 +531,19 @@ begin
   xRequestBody := TStringStream.Create(strObj); //Preenche o Body para enviar no Post.
 
   try
-    strResult := FHTTP.Post(UrlRegBoleto, xRequestBody); //Envia.
-    MemoResp.lines.add(strResult);
+    InsereLog('UrlRegBoleto ==> ' + UrlRegBoleto);
+    for i := 0 to FHTTP.Request.CustomHeaders.Count - 1 do
+      InsereLog('Headers ==> ' + FHTTP.Request.CustomHeaders[i]);
 
-    InsereLog('strResult');
-    InsereLog(strResult);
-    
+    strResult := FHTTP.Post(UrlRegBoleto, xRequestBody); //Envia.
+
+    InsereLog('httpResult ==> ' + strResult);
+    MemoResp.lines.add(strResult);
   except
     on E: EIdHTTPProtocolException do
     begin
+      InsereLog('httpResult ==> ' + strResult);
+      InsereLog('httpError ==> ' + E.ErrorMessage);
       MemoResp.Lines.add(E.ErrorMessage);
     end;
   end;
@@ -558,7 +568,7 @@ var
   streamstr: TStringStream;
   arq: TextFile;
   FileStream: TFileStream;
-  urlValidaAcesso :string;
+  urlValidaAcesso: string;
 begin
   if editToken.Text = '' then
     btnGerarToken.Click;
@@ -638,16 +648,18 @@ begin
 
   try
     strResult := FHTTP.Post(urlValidaAcesso, xRequestBody); //Envia.
+
+    InsereLog('httpResult ==> ' + strResult);
     MemoResp.lines.add(strResult);
 
-    InsereLog('strResult');
-    InsereLog(strResult);
-        
     objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
 
   except
     on E: EIdHTTPProtocolException do
     begin
+      MemoResp.Lines.add(E.ErrorMessage);
+      InsereLog('httpResult ==> ' + strResult);
+      InsereLog('httpError ==> ' + E.ErrorMessage);
       MemoResp.Lines.add(E.ErrorMessage);
     end;
   end;
@@ -656,7 +668,7 @@ begin
   FreeAndNil(strList);
   //FreeAndNil(streamstr);
 
-  InsereLog('Fim ValidaAcesso');  
+  InsereLog('Fim ValidaAcesso');
 end;
 
 end.

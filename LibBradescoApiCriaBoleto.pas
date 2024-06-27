@@ -114,6 +114,7 @@ type
     destructor Destroy; override;
     procedure Clear;
     function ToString(): string;
+    function stringApiModeloDoBanco(): string;
     property registrarTitulo: Integer read FregistrarTitulo write FregistrarTitulo; //Registrar título 1 = Registrar o título 2 = Somente consistir dados do título
     property codUsuario: string read FcodUsuario write FcodUsuario; //Código do Usuário responsável - Fixo = APISERVIC
     property nroCpfCnpjBenef: string read FnroCpfCnpjBenef write FnroCpfCnpjBenef; //Número de Inscrição do CNPJ ou CPF do Beneficiário (Cedente)
@@ -226,7 +227,8 @@ uses
 
 procedure TLibBradescoApiCriaBoleto.Clear;
 begin
-  FregistrarTitulo := 0;
+  FctitloCobrCdent := 00000000001; //Nosso Número // "UTILIZAR A RAIZ DO CNPJ DA EMPRESA + NÚMEROS SEQUENCIAIS - EX: 01234567001",
+  FregistrarTitulo := 1;
   FcodUsuario := 'APISERVIC';
   FnroCpfCnpjBenef := ''; //9 digitos do CNPJ
   FfilCpfCnpjBenef := ''; //4 digitos depois da Barra "/".
@@ -242,7 +244,6 @@ begin
   FeNseqContrNegoc := 0;
   FtipoRegistro := 1;
   FcprodtServcOper := 0;
-  FctitloCobrCdent := 00000000001; //Nosso Número
   FctitloCliCdent := ''; //Numero da NF.
   FdemisTitloCobr := '01.01.2000'; //Data Emissão.
   FdvctoTitloCobr := '01.01.2000'; //Data Vencimento.
@@ -446,6 +447,125 @@ begin
   json.Add('wqrcdPdraoMercd', FwqrcdPdraoMercd);
   json.Add('validadeAposVencimento', FvalidadeAposVencimento);
   json.Add('filler4', Ffiller4);
+
+  i := 0;
+  strJson := GenerateReadableText(json, i);
+  strJson := RemoveCaracterNaoUtilizadoNoJson(strJson);
+
+  Result := strJson;
+end;
+
+function TLibBradescoApiCriaBoleto.stringApiModeloDoBanco(): string;
+var
+  i: Integer;
+  strJson: string;
+  json: TlkJSONobject;
+begin
+  json := TlkJSONobject.Create;
+
+
+
+json.Add('ctitloCobrCdent', '03966317001'); // "UTILIZAR A RAIZ DO CNPJ DA EMPRESA + NÚMEROS SEQUENCIAIS - EX: 01234567001');
+json.Add('registrarTitulo', '1');
+json.Add('codUsuario', 'APISERVIC');
+json.Add('nroCpfCnpjBenef', '68542653');
+json.Add('filCpfCnpjBenef', '1018');
+json.Add('digCpfCnpjBenef', '38');
+json.Add('tipoAcesso', '2');
+json.Add('cpssoaJuridContr', '2269651');
+json.Add('ctpoContrNegoc', '48');
+json.Add('nseqContrNegoc', '2170272');
+json.Add('cidtfdProdCobr', '09');
+json.Add('cnegocCobr', '386100000000041000');
+json.Add('filler', '');
+json.Add('codigoBanco', '237');
+json.Add('eNseqContrNegoc', '2170272');
+json.Add('tipoRegistro', '001');
+json.Add('cprodtServcOper', '00000000');
+json.Add('ctitloCliCdent', 'CTITLO-CLI-CDENT');
+json.Add('demisTitloCobr', '29.04.2024');
+json.Add('dvctoTitloCobr', '28.06.2024');
+json.Add('cidtfdTpoVcto', '0');
+json.Add('cindcdEconmMoeda', '00006');
+json.Add('vnmnalTitloCobr', '00000000000100000');
+json.Add('qmoedaNegocTitlo', '00000000000100000');
+json.Add('cespceTitloCobr', '10');
+json.Add('cindcdAceitSacdo', 'N');
+json.Add('ctpoProteTitlo', '00');
+json.Add('ctpoPrzProte', '07');
+json.Add('ctpoProteDecurs', '00');
+json.Add('ctpoPrzDecurs', '07');
+json.Add('cctrlPartcTitlo', 'CCTRL-PARTC-TITLO');
+json.Add('cformaEmisPplta', '01');
+json.Add('cindcdPgtoParcial', 'N');
+json.Add('qtdePgtoParcial', '000');
+json.Add('filler1', '');
+json.Add('ptxJuroVcto', '0');
+json.Add('vdiaJuroMora', '');
+json.Add('qdiaInicJuro', '0');
+json.Add('pmultaAplicVcto', '0');
+json.Add('vmultaAtrsoPgto', '0');
+json.Add('qdiaInicMulta', '0');
+json.Add('pdescBonifPgto01', '0');
+json.Add('vdescBonifPgto01', '0');
+json.Add('dlimDescBonif1', '');
+json.Add('pdescBonifPgto02', '0');
+json.Add('vdescBonifPgto02', '0');
+json.Add('dlimDescBonif2', '');
+json.Add('pdescBonifPgto03', '0');
+json.Add('vdescBonifPgto03', '0');
+json.Add('dlimDescBonif3', '');
+json.Add('ctpoPrzCobr', '0');
+json.Add('pdescBonifPgto', '0');
+json.Add('vdescBonifPgto', '0');
+json.Add('dlimBonifPgto', '');
+json.Add('vabtmtTitloCobr', '0');
+json.Add('viofPgtoTitlo', '0');
+json.Add('filler2', '');
+json.Add('isacdoTitloCobr', 'SACADOTESTE');
+json.Add('elogdrSacdoTitlo', 'LOGRADOUROSACADOTESTE');
+json.Add('enroLogdrSacdo', 'LOGRADOURO');
+json.Add('ecomplLogdrSacdo', 'LOGRADOUROSACA');
+json.Add('ccepSacdoTitlo', '06401');
+json.Add('ccomplCepSacdo', '160');
+json.Add('ebairoLogdrSacdo', 'BAIRROSACADO');
+json.Add('imunSacdoTitlo', 'MUNICIPIOSACADO');
+json.Add('csglUfSacdo', 'SP');
+json.Add('indCpfCnpjSacdo', '1');
+json.Add('nroCpfCnpjSacdo', '00045886591893');
+json.Add('renderEletrSacdo', 'ENDERECOSACADO');
+json.Add('cdddFoneSacdo', '011');
+json.Add('cfoneSacdoTitlo', '00989414444');
+json.Add('bancoDeb', '000');
+json.Add('agenciaDeb', '00000');
+json.Add('agenciaDebDv', '0');
+json.Add('contaDeb', '0000000000000');
+json.Add('bancoCentProt', '237');
+json.Add('agenciaDvCentPr', '4152');
+json.Add('isacdrAvalsTitlo', '');
+json.Add('elogdrSacdrAvals', '');
+json.Add('enroLogdrSacdr', '');
+json.Add('ecomplLogdrSacdr', '');
+json.Add('ccepSacdrTitlo', '0');
+json.Add('ccomplCepSacdr', '0');
+json.Add('ebairoLogdrSacdr', '');
+json.Add('imunSacdrAvals', '');
+json.Add('csglUfSacdr', '');
+json.Add('indCpfCnpjSacdr', '0');
+json.Add('nroCpfCnpjSacdr', '0');
+json.Add('renderEletrSacdr', '');
+json.Add('cdddFoneSacdr', '0');
+json.Add('cfoneSacdrTitlo', '0');
+json.Add('filler3', '');
+json.Add('fase', '1');
+json.Add('cindcdCobrMisto', 'S');
+json.Add('ialiasAdsaoCta', '');
+json.Add('iconcPgtoSpi', '');
+json.Add('caliasAdsaoCta', '');
+json.Add('ilinkGeracQrcd', '');
+json.Add('wqrcdPdraoMercd', '');
+json.Add('validadeAposVencimento', '0');
+json.Add('filler4', '');
 
   i := 0;
   strJson := GenerateReadableText(json, i);
