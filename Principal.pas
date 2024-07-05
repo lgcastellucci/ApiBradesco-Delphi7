@@ -26,8 +26,8 @@ type
   private
     { Private declarations }
     DFeSSL: TDFeSSL;
-    FSSLDigest: TSSLDgst;
-    FSSLHashOutput: TSSLHashOutput;
+    //FSSLDigest: TSSLDgst;
+    //FSSLHashOutput: TSSLHashOutput;
     //ObjACBrEAD: TACBrEAD;
     FIdSSLIOHandlerSocketOpenSSL: TIdSSLIOHandlerSocketOpenSSL;
     ACBrOpenSSLUtils1: TACBrOpenSSLUtils;
@@ -175,7 +175,6 @@ begin
   ACBrOpenSSLUtils1 := TACBrOpenSSLUtils.Create(Self);
   ACBrOpenSSLUtils1.LoadPFXFromFile(ArquivoPFX, SenhaPFX);
 
-  Agora := Now;
 end;
 
 procedure TFPrincipal.FormDestroy(Sender: TObject);
@@ -205,6 +204,8 @@ var
   strJsonHeader, strPayloadBase: string;
 begin
   InsereLog('Inicio GerarToken');
+
+  Agora := Now;
 
   {*** BLOCO FORMATACAO DA DATA DO PAYLOAD***}
   dataAtual := AddHoursToDateTime(Agora, 3); //Data Atual UTC
@@ -319,12 +320,11 @@ end;
 procedure TFPrincipal.btnRegistraBoletoClick(Sender: TObject);
 var
   strResult: string;
-  objJson: TlkJSONobject;
   strMiliSegundos: string;
   strTimeStamp, strObj, strLinha1, strLinha2, strLinha3, strLinha4, strLinha5, strLinha6, strLinha7, strLinha8: string;
   dataAtual: TDateTime;
   stremRequest: TStringStream;
-  strRequestAssinado, strRequestAssinadoList, strRequestAssinadoStream, strRequestAssinadoAnsiString: string;
+  strRequestAssinado, strRequestAssinadoStream: string;
   xRequestBody: TStringStream;
   objCriaBoleto: TLibBradescoApiCriaBoleto;
   strList: TStringList;
@@ -464,7 +464,7 @@ begin
   //strRequestAssinado := ObjACBrEAD.CalcularAssinatura(strLinha1+#10+strLinha2+#10+strLinha3+#10+strLinha4+#10+
   //  strLinha5+#10+strLinha6+#10+strLinha7+#10+strLinha8, dgstSHA256, outBase64);
 
-  strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
+  //strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
 
   //strRequestAssinadoStream := CalcularHash(stremRequest);//aqui realiza a assinatura.
   //strRequestAssinadoStream := ObjACBrEAD.CalcularAssinatura(stremRequest, dgstSHA256, outBase64);
@@ -557,18 +557,15 @@ end;
 procedure TFPrincipal.btnValidaAcessoClick(Sender: TObject);
 var
   strResult: string;
-  objJson: TlkJSONobject;
   strMiliSegundos: string;
   strTimeStamp, strLinha1, strLinha2, strLinha3, strLinha4, strLinha5, strLinha6, strLinha7, strLinha8: string;
   dataAtual: TDateTime;
   stremRequest: TStringStream;
   strRequestAssinado, strRequestAssinadoList, strRequestAssinadoStream, strRequestAssinadoAnsiString: string;
   xRequestBody: TStringStream;
-  strList: TStringList;
-  streamstr: TStringStream;
-  arq: TextFile;
-  FileStream: TFileStream;
   urlValidaAcesso: string;
+  FileStream: TFileStream;
+  i: Integer;
 begin
   if editToken.Text = '' then
     btnGerarToken.Click;
@@ -591,7 +588,7 @@ begin
   DFeSSL.Senha := SenhaPFX;
   DFeSSL.CarregarCertificado;
 
-  urlValidaAcesso := 'https://proxy.api.prebanco.com.br/auth/server/v1.1/jwt-service?agencia=' + BeneficiarioAgencia + '&conta=' + BeneficiarioConta;
+  urlValidaAcesso := 'https://proxy.api.prebanco.com.br/v1.1/jwt-service?agencia=' + BeneficiarioAgencia + '&conta=' + BeneficiarioConta;
   strLinha1 := 'POST' + #10; //Methodo HTTP
   strLinha2 := '/v1.1/jwt-service' + #10; //URI de Requisição
   strLinha3 := 'agencia=' + BeneficiarioAgencia + '&conta=' + BeneficiarioConta + #10; //Parâmetros
@@ -600,6 +597,7 @@ begin
   strLinha6 := strMiliSegundos + #10; //Hora Atual em Milisegundos.
   strLinha7 := strTimeStamp + #10; //TimeStamp;
   strLinha8 := 'SHA256'; //Algoritimo Usado.
+
 
   if FileExists('request.txt') then
     DeleteFile('request.txt');
@@ -615,9 +613,7 @@ begin
     // Libera a memória usada pelo TFileStream
     FileStream.Free;
   end;
-
   strRequestAssinado := URLEncode(CalcularHashArquivo(DFeSSL, 'request.txt')); //aqui realiza a assinatura.
-  //strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
 
   {*** FIM BLOCO DE ASSINATURA ***}
 
@@ -647,17 +643,21 @@ begin
   xRequestBody := TStringStream.Create(''); //Preenche o Body para enviar no Post.
 
   try
+    InsereLog('urlValidaAcesso ==> ' + urlValidaAcesso);
+    for i := 0 to FHTTP.Request.CustomHeaders.Count - 1 do
+      InsereLog('Headers ==> ' + FHTTP.Request.CustomHeaders[i]);
+
     strResult := FHTTP.Post(urlValidaAcesso, xRequestBody); //Envia.
 
     InsereLog('httpResult ==> ' + strResult);
     MemoResp.lines.add(strResult);
+ 
 
-    objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
+    //objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
 
   except
     on E: EIdHTTPProtocolException do
     begin
-      MemoResp.Lines.add(E.ErrorMessage);
       InsereLog('httpResult ==> ' + strResult);
       InsereLog('httpError ==> ' + E.ErrorMessage);
       MemoResp.Lines.add(E.ErrorMessage);
@@ -665,8 +665,6 @@ begin
   end;
 
   FreeAndNil(xRequestBody);
-  FreeAndNil(strList);
-  //FreeAndNil(streamstr);
 
   InsereLog('Fim ValidaAcesso');
 end;
