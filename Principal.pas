@@ -222,11 +222,11 @@ begin
   strJsonHeader := GenerateReadableText(jsonHeader, i);
   strJsonHeader := RemoveCaracterNaoUtilizadoNoJson(strJsonHeader);
   strHeaderBase64 := EncodeBase64(strJsonHeader);
-  RemoveCaracterIgual(strHeaderBase64);
+  strHeaderBase64 := RemoveCaracterIgual(strHeaderBase64);
 
   InsereLog('strJsonHeader ==> ' + strJsonHeader);
   {*** FIM BLOCO MONTAGEM DO HEADER JSON ***}
-  
+
 
   {*** BLOCO MONTAGEM DO PAYLOAD JSON ***}
   jsonPayload := TlkJSONobject.Create;
@@ -246,7 +246,7 @@ begin
   strPayloadBase := RemoveCaracterNaoUtilizadoNoJson(strPayloadBase);
 
   strPayloadBase64 := EncodeBase64(strPayloadBase);
-  RemoveCaracterIgual(strPayloadBase64);
+  strPayloadBase64 := RemoveCaracterIgual(strPayloadBase64);
 
   InsereLog('strPayloadBase ==> ' + strPayloadBase);
   {*** FIM BLOCO MONTAGEM DO PAYLOAD JSON ***}

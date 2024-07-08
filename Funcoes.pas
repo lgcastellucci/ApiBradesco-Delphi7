@@ -12,7 +12,7 @@ function CalcularHash(var DFeSSL_Local: TDFeSSL; AAut: TStream): string;
 function ConverteDateISO(AData: TDateTime; AInputIsUTC : Boolean = True): String;
 function URLEncode(const S: string): string;
 function RemoveCaracterNaoUtilizadoNoJson(strJson: string): string;
-procedure RemoveCaracterIgual(var conteudo: string);
+function RemoveCaracterIgual(conteudo: string): string;
 function CalcularHashArquivo(var DFeSSL_Local: TDFeSSL; NomeArquivo: string): string;
 function Padr(Frase: string; Caracter:Char; nTamanho: Integer): string;
 
@@ -123,10 +123,12 @@ begin
   Result := strJson;
 end;
 
-procedure RemoveCaracterIgual(var conteudo: string);
+function RemoveCaracterIgual(conteudo: string): string;
 begin
   while (Length(conteudo) > 0) and (conteudo[Length(conteudo)] = '=') do
     SetLength(conteudo, Length(conteudo) - 1);
+
+  Result := conteudo;
 end;
 
 function Padr(Frase: string; Caracter:Char; nTamanho: Integer): string;

@@ -465,7 +465,7 @@ begin
 
 
 
-json.Add('ctitloCobrCdent', '03966317001'); // "UTILIZAR A RAIZ DO CNPJ DA EMPRESA + NÚMEROS SEQUENCIAIS - EX: 01234567001');
+json.Add('ctitloCobrCdent', '03966317021'); // "UTILIZAR A RAIZ DO CNPJ DA EMPRESA + NÚMEROS SEQUENCIAIS - EX: 01234567001');
 json.Add('registrarTitulo', '1');
 json.Add('codUsuario', 'APISERVIC');
 json.Add('nroCpfCnpjBenef', '68542653');
@@ -483,8 +483,8 @@ json.Add('eNseqContrNegoc', '2170272');
 json.Add('tipoRegistro', '001');
 json.Add('cprodtServcOper', '00000000');
 json.Add('ctitloCliCdent', 'CTITLO-CLI-CDENT');
-json.Add('demisTitloCobr', '29.04.2024');
-json.Add('dvctoTitloCobr', '28.06.2024');
+json.Add('demisTitloCobr', '08.07.2024');
+json.Add('dvctoTitloCobr', '10.07.2024');
 json.Add('cidtfdTpoVcto', '0');
 json.Add('cindcdEconmMoeda', '00006');
 json.Add('vnmnalTitloCobr', '00000000000100000');
