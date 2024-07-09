@@ -324,13 +324,10 @@ var
   strTimeStamp, strObj, strLinha1, strLinha2, strLinha3, strLinha4, strLinha5, strLinha6, strLinha7, strLinha8: string;
   dataAtual: TDateTime;
   stremRequest: TStringStream;
-  strRequestAssinado, strRequestAssinadoStream: string;
+  strRequestAssinado: string;
   xRequestBody: TStringStream;
   objCriaBoleto: TLibBradescoApiCriaBoleto;
   strList: TStringList;
-  streamstr: TStringStream;
-  arq: TextFile;
-  FileStream: TFileStream;
   i: Integer;
 begin
   if editToken.Text = '' then
@@ -413,31 +410,10 @@ begin
   strLinha7 := strTimeStamp + #10; //TimeStamp;
   strLinha8 := 'SHA256'; //Algoritimo Usado.
 
+  //Assinatura conforme o manual
+  {
   if FileExists('request.txt') then
     DeleteFile('request.txt');
-
-
-  //AssignFile(arq, 'request.txt');
-  //SetLineBreakStyle(arq, tlbsLF);
-  //{$I-}
-  //Reset(arq);
-  //{$I+}
-  //if (IOResult <> 0) then
-  //  Rewrite(arq) { arquivo não existe e será criado }
-  //else
-  //begin
-  //  CloseFile(arq);
-  //  Append(arq); { o arquivo existe e será aberto para saídas adicionais }
-  //end;
-  //Writeln(arq, strLinha1);
-  //Writeln(arq, strLinha2);
-  //Writeln(arq, strLinha3);
-  //Writeln(arq, strLinha4);
-  //Writeln(arq, strLinha5);
-  //Writeln(arq, strLinha6);
-  //Writeln(arq, strLinha7);
-  //Writeln(arq, strLinha8);
-  ///CloseFile(arq); { fecha o arquivo texto aberto }
 
   stremRequest := TStringStream.Create(strLinha1 + strLinha2 + strLinha3 + strLinha4 + strLinha5 + strLinha6 + strLinha7 + strLinha8); //Aqui vai o arquivo para Assinar.
   FileStream := TFileStream.Create('request.txt', fmCreate);
@@ -455,48 +431,12 @@ begin
   InsereLog(strLinha1 + strLinha2 + strLinha3 + strLinha4 + strLinha5 + strLinha6 + strLinha7 + strLinha8);
 
   strRequestAssinado := URLEncode(CalcularHashArquivo(DFeSSL, 'request.txt')); //aqui realiza a assinatura.
-
-  //strRequestAssinado := CalcularHash(stremRequest);//aqui realiza a assinatura.
-
-  //stremRequest := TStringStream.Create(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8); //Aqui vai o arquivo para Assinar.
-  //stremRequest.SaveToFile('request.txt');
-  //strRequestAssinado := ObjACBrEAD.CalcularAssinaturaArquivo( 'request.txt', dgstSHA256, outBase64);
-  //strRequestAssinado := ObjACBrEAD.CalcularAssinatura(strLinha1+#10+strLinha2+#10+strLinha3+#10+strLinha4+#10+
-  //  strLinha5+#10+strLinha6+#10+strLinha7+#10+strLinha8, dgstSHA256, outBase64);
-
-  //strRequestAssinado := URLEncode(ACBrOpenSSLUtils1.CalcHashFromFile('request.txt', algSHA256, sttHexa, True));
-
-  //strRequestAssinadoStream := CalcularHash(stremRequest);//aqui realiza a assinatura.
-  //strRequestAssinadoStream := ObjACBrEAD.CalcularAssinatura(stremRequest, dgstSHA256, outBase64);
-
-  //strRequestAssinado := CalcHashArquivo('request.txt');
-  {
-  memoEnv.Lines.Add('--------------STREAM-------------');
-  memoEnv.Lines.Add(strRequestAssinadoStream);
-  memoEnv.Lines.Add('---------------------------');
-  }
-  //streamstr := TStringStream.Create();
-  //strList.SaveToStream(streamstr);
-  //strList.SaveToFile('request.txt');
-  //strRequestAssinadoList := CalcularHash(strList);//aqui realiza a assinatura.
-  //strRequestAssinadoList := ObjACBrEAD.CalcularAssinatura(strList, dgstSHA256, outBase64);
-  //strRequestAssinado := ObjACBrEAD.CalcularAssinaturaArquivo('request.txt', dgstSHA256, outBase64);
-  //strRequestAssinado := strRequestAssinadoList;
-  {
-  memoEnv.Lines.Add('--------------STRLIST-------------');
-  memoEnv.Lines.Add(strRequestAssinadoList);
-  memoEnv.Lines.Add('---------------------------');
-  }
-  //strRequestAssinadoAnsiString := CalcularHash(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8);//aqui realiza a assinatura.
-  //strRequestAssinadoAnsiString := CalcularHash(ChangeLineBreak(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8, sLineBreak));//aqui realiza a assinatura.
-  //strRequestAssinadoAnsiString := ObjACBrEAD.CalcularAssinatura(ChangeLineBreak(strLinha1+strLinha2+strLinha3+strLinha4+strLinha5+strLinha6+strLinha7+strLinha8, sLineBreak), dgstSHA256, outBase64);
-  {
-  memoEnv.Lines.Add('--------------ANSISTRING-------------');
-  memoEnv.Lines.Add(strRequestAssinadoAnsiString);
-  memoEnv.Lines.Add('---------------------------');
   }
 
-  //strRequestAssinado := strRequestAssinadoAnsiString;
+
+  stremRequest := TStringStream.Create(strLinha1 + strLinha2 + strLinha3 + strLinha4 + strLinha5 + strLinha6 + strLinha7 + strLinha8); //Aqui vai o arquivo para Assinar.
+  strRequestAssinado := CalcularHash(DFeSSL, stremRequest);//aqui realiza a assinatura.
+
   {*** FIM BLOCO DE ASSINATURA ***}
 
   {*** MONTAGEM DO HEADER ***}
