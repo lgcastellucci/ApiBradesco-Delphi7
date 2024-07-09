@@ -382,25 +382,6 @@ begin
   DFeSSL.Senha := SenhaPFX;
   DFeSSL.CarregarCertificado;
 
-  //strList := TStringList.Create;
-  //strList.Add('POST'); //Methodo HTTP
-  //strList.Add(UrlRegBoleto); //URI de Requisição
-  //strList.Add(''); //Parâmetros. quando houver, se não tem deixa linha em branco.
-  //strList.Add(strObj); //Json de criação do Boleto que vai no Body.
-  //strList.Add(editToken.Text); //Access-token retornado da API.
-  //strList.Add(IntToStr(intMiliSegundos)); //Hora Atual em Milisegundos.
-  //strList.Add(strTimeStamp); //TimeStamp;
-  //strList.Add('SHA256'); //Algoritimo Usado.
-
-  //strLinha1 := 'POST'; //Methodo HTTP
-  //strLinha2 := UrlRegBoleto; //URI de Requisição
-  //strLinha3 := ''; //Parâmetros. quando houver, se não tem deixa linha em branco.
-  //strLinha4 := strObj; //Json de criação do Boleto que vai no Body.
-  //strLinha5 := editToken.Text; //Access-token retornado da API.
-  //strLinha6 := IntToStr(intMiliSegundos); //Hora Atual em Milisegundos.
-  //strLinha7 := strTimeStamp; //TimeStamp;
-  //strLinha8 := 'SHA256'; //Algoritimo Usado.
-
   strLinha1 := 'POST' + #10; //Methodo HTTP
   strLinha2 := UrlRegBoletoNoRequest + #10; //URI de Requisição
   strLinha3 := '' + #10; //Parâmetros. quando houver, se não tem deixa linha em branco.
