@@ -446,7 +446,7 @@ begin
   FHTTP.Request.CustomHeaders.Add('X-Brad-Algorithm: SHA256');
   FHTTP.Request.CustomHeaders.Add('access-token: ' + ClienteID);
   FHTTP.Request.CustomHeaders.Add('Content-Type: ' + 'application/json');
-  //FHTTP.Request.CustomHeaders.Add('cpf-cnpj: ' + BeneficiarioDocumento); //CNPJ DA EMPRESA
+  FHTTP.Request.CustomHeaders.Add('cpf-cnpj: ' + BeneficiarioDocumento); //CNPJ DA EMPRESA
   {*** FIM MONTAGEM DO HEADER ***}
 
   xRequestBody := TStringStream.Create(strObj); //Preenche o Body para enviar no Post.
