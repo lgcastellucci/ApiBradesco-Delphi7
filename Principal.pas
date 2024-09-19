@@ -577,11 +577,11 @@ begin
     //objJson := TlkJSON.ParseText(strResult) as TlkJSONobject;
 
   except
-    on E: EIdHTTPProtocolException do
+    on E: Exception do
     begin
       InsereLog('httpResult ==> ' + strResult);
-      InsereLog('httpError ==> ' + E.ErrorMessage);
-      MemoResp.Lines.add(E.ErrorMessage);
+      InsereLog('httpError ==> ' + E.Message);
+      MemoResp.Lines.add(E.Message);
     end;
   end;
 
